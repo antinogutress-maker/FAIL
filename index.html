@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loksewa Exam Prep - GK, Numerical & Smart Mocks</title>
+    <style>
+        /* --- CSS: Kept your modern styling --- */
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #3b82f6;
+            --background-color: #f1f5f9;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --card-bg: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+
+        body { background-color: var(--background-color); color: var(--text-main); line-height: 1.6; padding-bottom: 40px; }
+
+        header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 40px 20px 60px 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+        .filter-container {
+            margin: -30px auto 30px auto;
+            max-width: 500px;
+            position: relative;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        select {
+            width: 100%;
+            padding: 18px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            background: transparent;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            appearance: none;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .filter-container::after {
+            content: '▼';
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .quiz-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            text-decoration: none;
+            color: var(--text-main);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            border-left: 5px solid var(--primary-color); /* Default Blue for GK */
+        }
+
+        /* Color Coding for different categories */
+        .quiz-card.numerical { border-left-color: #10b981; } /* Green */
+        .quiz-card.smart { border-left-color: #8b5cf6; } /* Purple for Smart Mocks */
+
+        .quiz-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        .quiz-icon {
+            background: #e0e7ff;
+            color: var(--primary-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .quiz-title { font-size: 1.1rem; font-weight: 600; }
+
+        #status-message { text-align: center; padding: 40px; font-size: 1.2rem; color: var(--text-muted); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Loksewa Exam Hub</h1>
+        <p>Prepare with Smart Mocks, GK, and Numericals</p>
+    </header>
+
+    <div class="container">
+        <div class="filter-container">
+            <select id="categoryFilter">
+                <option value="all">Show All Tests</option>
+                <option value="smart">Daily Smart Mock Test Series</option>
+                <option value="numerical">Numerical Reasoning</option>
+                <option value="gk">General Knowledge (GK)</option>
+            </select>
+        </div>
+
+        <div id="status-message">Loading tests...</div>
+
+        <div id="quiz-container" class="grid-container hidden"></div>
+    </div>
+
+    <script>
+        const GITHUB_OWNER = 'antinogutress-maker'; 
+        const GITHUB_REPO = 'SMARTMOCK';        
+        const FOLDER_PATH = 'tests'; 
+        
+        const container = document.getElementById('quiz-container');
+        const statusMessage = document.getElementById('status-message');
+        const categoryFilter = document.getElementById('categoryFilter');
+        let allQuizzes = []; 
+
+        function formatTitle(filename) {
+            let name = filename.replace('.html', '');
+            
+            // Clean up prefixes for better display
+            if(name.toLowerCase().startsWith('gk')) {
+                name = "GK: " + name.substring(2);
+            } else if (name.toLowerCase().startsWith('smart')) {
+                name = "Smart Mock: " + name.substring(5);
+            }
+            
+            name = name.replace(/[-_]/g, ' '); 
+            return name.replace(/\b\w/g, char => char.toUpperCase()); 
+        }
+
+        async function fetchQuizzes() {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${FOLDER_PATH}`);
+                
+                if (!response.ok) throw new Error('Failed to fetch tests from GitHub.');
+
+                const files = await response.json();
+                let fetchedFiles = files.filter(file => file.name.endsWith('.html'));
+
+                // --- RECENT AT TOP LOGIC ---
+                // GitHub API doesn't send "upload dates", so we sort by file name descending.
+                // numeric: true ensures "Test 10" is sorted above "Test 2".
+                allQuizzes = fetchedFiles.sort((a, b) => {
+                    return b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                if (allQuizzes.length === 0) {
+                    statusMessage.innerText = "No tests found.";
+                    return;
+                }
+
+                statusMessage.classList.add('hidden');
+                container.classList.remove('hidden');
+                
+                renderQuizzes(allQuizzes);
+
+            } catch (error) {
+                statusMessage.innerText = `Error: ${error.message}`;
+                statusMessage.style.color = '#ef4444'; 
+            }
+        }
+
+        function renderQuizzes(quizArray) {
+            container.innerHTML = ''; 
+
+            quizArray.forEach((file, index) => {
+                const nameLower = file.name.toLowerCase();
+                const isSmart = nameLower.startsWith('smart');
+                const isGk = nameLower.startsWith('gk');
+                const isNumerical = !isSmart && !isGk; 
+                
+                const formattedName = formatTitle(file.name);
+                
+                const card = document.createElement('a');
+                
+                // Assign the correct color class based on category
+                let cardClass = 'quiz-card ';
+                if (isSmart) cardClass += 'smart';
+                else if (isNumerical) cardClass += 'numerical';
+                
+                card.className = cardClass;
+                card.href = `${FOLDER_PATH}/${file.name}`; 
+
+                card.innerHTML = `
+                    <div class="quiz-icon">${index + 1}</div>
+                    <div class="quiz-title">${formattedName}</div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // --- FILTER LOGIC ---
+        categoryFilter.addEventListener('change', (e) => {
+            const selected = e.target.value;
+            
+            const filteredQuizzes = allQuizzes.filter(file => {
+                const nameLower = file.name.toLowerCase();
+                const isSmart = nameLower.startsWith('smart');
+                const isGk = nameLower.startsWith('gk');
+                const isNumerical = !isSmart && !isGk; 
+                
+                if (selected === 'all') return true;
+                if (selected === 'smart') return isSmart;
+                if (selected === 'gk') return isGk;
+                if (selected === 'numerical') return isNumerical;
+            });
+
+            renderQuizzes(filteredQuizzes);
+
+            if (filteredQuizzes.length === 0) {
+                container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;"><h3>No ${selected.toUpperCase()} tests found!</h3></div>`;
+            }
+        });
+
+        fetchQuizzes();
+    </script>
+</body>
+</html>
